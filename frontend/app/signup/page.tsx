@@ -37,7 +37,7 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-sm border border-gray-200">
         <h1 className="text-2xl font-bold text-gray-900 mb-1">Create your account</h1>
-        <p className="text-sm text-gray-500 mb-6">Smart Campus Utility App</p>
+        <p className="text-sm text-gray-500 mb-6">AstroERP</p>
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-md">

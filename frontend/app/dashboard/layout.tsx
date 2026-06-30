@@ -47,7 +47,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen flex bg-gray-50">
       <aside className="w-64 bg-[#0B2530] text-white flex flex-col">
         <div className="p-5 border-b border-white/10">
-          <h1 className="text-lg font-bold">Smart Campus</h1>
+          <h1 className="text-lg font-bold">AstroERP</h1>
           <p className="text-xs text-white/60 mt-1">
             {user.name} - {user.role}
           </p>

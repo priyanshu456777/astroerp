@@ -1,5 +1,5 @@
 {
-  "name": "smart-campus-backend",
+  "name": "astroerp-backend",
   "version": "1.0.0",
   "description": "Backend API for Smart Campus Utility App",
   "main": "server.js",
