@@ -31,6 +31,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: "Dashboard", href: "/dashboard" },
     { name: "Timetable", href: "/dashboard/timetable" },
     { name: "Tasks", href: "/dashboard/tasks" },
+    { name: "Assignments", href: "/dashboard/assignments" },
     { name: "Attendance", href: "/dashboard/attendance" },
     { name: "Notices", href: "/dashboard/notices" },
     { name: "Notes", href: "/dashboard/notes" },
