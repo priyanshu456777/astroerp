@@ -280,21 +280,20 @@ export default function SignupPage() {
                       ))}
                     </select>
 
-                    <select
-                      required
-                      value={dob ? dob.split("-")[0] : ""}
-                      onChange={(e) => {
-                        const year = e.target.value;
-                        const [, m, d] = dob ? dob.split("-") : ["", "", ""];
-                        setDob(`${year}-${m || "01"}-${d || "01"}`);
-                      }}
-                      className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white cursor-pointer"
-                    >
-                      <option value="">Year</option>
-                      {Array.from({ length: 30 }, (_, i) => new Date().getFullYear() - 10 - i).map((y) => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
+                    <input
+  type="number"
+  required
+  placeholder="Year"
+  min={1970}
+  max={new Date().getFullYear() - 10}
+  value={dob ? dob.split("-")[0] : ""}
+  onChange={(e) => {
+    const year = e.target.value;
+    const [, m, d] = dob ? dob.split("-") : ["", "", ""];
+    setDob(`${year}-${m || "01"}-${d || "01"}`);
+  }}
+  className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+/>
                   </div>
                 </div>
 
