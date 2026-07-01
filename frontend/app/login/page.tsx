@@ -22,7 +22,7 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      saveAuth(data.user, data.accessToken);
+      saveAuth(data.accessToken, data.user);
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message);
