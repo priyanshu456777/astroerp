@@ -20,7 +20,7 @@ export default function SignupPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await apiFetch("/auth/signup", {
+      const data = await apiFetch("/auth/register", {
         method: "POST",
         body: JSON.stringify({ name, email, password, role }),
       });
