@@ -6,28 +6,69 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
 
+const STREAMS = [
+  "AIDS", "CSE", "AI & Robotics", "AIML", "BCA", "BA", "BBA", "B.Com", "BSc", "Mechanical",
+];
+const SECTIONS = ["A", "B", "C", "D"];
+
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("student");
+  const [role, setRole] = useState<"student" | "admin">("student");
+
+  // Student fields
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState("");
+  const [dob, setDob] = useState("");
+  const [stream, setStream] = useState("");
+  const [section, setSection] = useState("");
+
+  // Admin fields
+  const [teachingStream, setTeachingStream] = useState("");
+  const [teachingSection, setTeachingSection] = useState("");
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+
+    if (role === "student" && (!age || !gender || !dob || !stream || !section)) {
+      setError("Please fill in all student details");
+      return;
+    }
+    if (role === "admin" && (!teachingStream || !teachingSection)) {
+      setError("Please select the stream and section you teach");
+      return;
+    }
+
+    setLoading(true);
     try {
+      const payload: any = { name, email, password, role };
+
+      if (role === "student") {
+        payload.age = age;
+        payload.gender = gender;
+        payload.dob = dob;
+        payload.stream = stream;
+        payload.section = section;
+      } else {
+        payload.teachingStream = teachingStream;
+        payload.teachingSection = teachingSection;
+      }
+
       const data = await apiFetch("/auth/register", {
         method: "POST",
-        body: JSON.stringify({ name, email, password, role }),
+        body: JSON.stringify(payload),
       });
+
       if (role === "admin") {
         router.push("/login?pending=true");
       } else {
-        saveAuth(data.user, data.accessToken);
+        saveAuth(data.accessToken, data.user);
         router.push("/dashboard");
       }
     } catch (err: any) {
@@ -85,8 +126,8 @@ export default function SignupPage() {
       </div>
 
       {/* Right panel */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-white">
-        <div className="w-full max-w-md">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-white overflow-y-auto">
+        <div className="w-full max-w-md py-8">
           <div className="lg:hidden mb-8">
             <Link href="/" className="text-[#0B2530] font-bold text-xl">AstroERP</Link>
           </div>
@@ -112,6 +153,7 @@ export default function SignupPage() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Priyanshu Sharma"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                autoComplete="name"
               />
             </div>
 
@@ -124,6 +166,7 @@ export default function SignupPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                autoComplete="email"
               />
             </div>
 
@@ -136,13 +179,14 @@ export default function SignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                autoComplete="new-password"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">I am a</label>
               <div className="grid grid-cols-2 gap-3">
-                {["student", "admin"].map((r) => (
+                {(["student", "admin"] as const).map((r) => (
                   <button
                     key={r}
                     type="button"
@@ -163,6 +207,120 @@ export default function SignupPage() {
                 </p>
               )}
             </div>
+
+            {/* Student-only fields */}
+            {role === "student" && (
+              <div className="space-y-4 pt-2 border-t border-gray-100">
+                <div className="grid grid-cols-2 gap-3 pt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Age</label>
+                    <input
+                      type="number"
+                      required
+                      min={10}
+                      max={100}
+                      value={age}
+                      onChange={(e) => setAge(e.target.value)}
+                      placeholder="19"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Gender</label>
+                    <select
+                      required
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                    >
+                      <option value="">Select</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Date of birth</label>
+                  <input
+                    type="date"
+                    required
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Stream</label>
+                    <select
+                      required
+                      value={stream}
+                      onChange={(e) => setStream(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                    >
+                      <option value="">Select stream</option>
+                      {STREAMS.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Section</label>
+                    <select
+                      required
+                      value={section}
+                      onChange={(e) => setSection(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                    >
+                      <option value="">Select section</option>
+                      {SECTIONS.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Admin-only fields */}
+            {role === "admin" && (
+              <div className="space-y-4 pt-2 border-t border-gray-100">
+                <p className="text-sm font-medium text-gray-700 pt-4">Class you teach</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Stream</label>
+                    <select
+                      required
+                      value={teachingStream}
+                      onChange={(e) => setTeachingStream(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                    >
+                      <option value="">Select stream</option>
+                      {STREAMS.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Section</label>
+                    <select
+                      required
+                      value={teachingSection}
+                      onChange={(e) => setTeachingSection(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                    >
+                      <option value="">Select section</option>
+                      {SECTIONS.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <button
               type="submit"
