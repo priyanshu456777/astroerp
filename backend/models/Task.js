@@ -26,6 +26,8 @@ const taskSchema = new mongoose.Schema(
       enum: ["pending", "in-progress", "completed"],
       default: "pending",
     },
+    stream: { type: String, default: "" },
+    section: { type: String, default: "" },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

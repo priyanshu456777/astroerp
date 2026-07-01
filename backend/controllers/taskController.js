@@ -1,13 +1,36 @@
 const Task = require("../models/Task");
 const { taskSchema, taskUpdateSchema } = require("../validators/taskTimetableValidators");
 
+// All tasks (for "All Tasks" tab — everyone can see everything, read-only unless it's their class)
 const getTasks = async (req, res) => {
   try {
-    const tasks = await Task.find().sort({ dueDate: 1 });
+    const tasks = await Task.find()
+      .populate("ownerId", "name teachingStream teachingSection")
+      .sort({ dueDate: 1 });
     return res.status(200).json({ tasks });
   } catch (error) {
     console.error("Get tasks error:", error.message);
     return res.status(500).json({ message: "Server error while fetching tasks" });
+  }
+};
+
+// "My Class" tab — only tasks matching the logged-in student's stream+section
+const getMyClassTasks = async (req, res) => {
+  try {
+    const { stream, section } = req.user;
+
+    if (!stream || !section) {
+      return res.status(200).json({ tasks: [] });
+    }
+
+    const tasks = await Task.find({ stream, section })
+      .populate("ownerId", "name")
+      .sort({ dueDate: 1 });
+
+    return res.status(200).json({ tasks });
+  } catch (error) {
+    console.error("Get my class tasks error:", error.message);
+    return res.status(500).json({ message: "Server error while fetching class tasks" });
   }
 };
 
@@ -21,8 +44,12 @@ const createTask = async (req, res) => {
       });
     }
 
+    const { teachingStream, teachingSection } = req.user;
+
     const task = await Task.create({
       ...parsed.data,
+      stream: teachingStream || "",
+      section: teachingSection || "",
       ownerId: req.user._id,
     });
 
@@ -74,4 +101,4 @@ const deleteTask = async (req, res) => {
   }
 };
 
-module.exports = { getTasks, createTask, updateTask, deleteTask };
+module.exports = { getTasks, getMyClassTasks, createTask, updateTask, deleteTask };

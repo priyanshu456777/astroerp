@@ -3,41 +3,25 @@ const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema(
   {
-    name: {
-      type: String,
-      required: [true, "Name is required"],
-      trim: true,
-    },
-    email: {
-      type: String,
-      required: [true, "Email is required"],
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-    password: {
-      type: String,
-      required: [true, "Password is required"],
-      minlength: 6,
-    },
-    role: {
-      type: String,
-      enum: ["admin", "student"],
-      default: "student",
-    },
-    adminStatus: {
-      type: String,
-      enum: ["none", "pending", "approved", "rejected"],
-      default: "none",
-    },
-    profilePic: {
-      type: String,
-      default: "",
-    },
-    department: {
-      type: String,
-      default: "",
-    },
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ["student", "admin", "superadmin"], default: "student" },
+    adminStatus: { type: String, enum: ["none", "pending", "approved", "rejected"], default: "none" },
+
+    department: { type: String, default: "" },
+    profilePic: { type: String, default: "" },
+
+    // Student fields
+    age: { type: Number },
+    gender: { type: String, enum: ["male", "female", "other"] },
+    dob: { type: Date },
+    stream: { type: String },
+    section: { type: String },
+
+    // Admin/Teacher fields
+    teachingStream: { type: String },
+    teachingSection: { type: String },
   },
   { timestamps: true }
 );
@@ -51,12 +35,6 @@ userSchema.pre("save", async function (next) {
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
-};
-
-userSchema.methods.toJSON = function () {
-  const obj = this.toObject();
-  delete obj.password;
-  return obj;
 };
 
 module.exports = mongoose.model("User", userSchema);

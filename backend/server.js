@@ -16,6 +16,7 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const noticeRoutes = require("./routes/noticeRoutes");
 const noteRoutes = require("./routes/noteRoutes");
 const sharedNoteRoutes = require("./routes/sharedNoteRoutes");
+const assignmentRoutes = require("./routes/assignmentRoutes");
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/notices", noticeRoutes);
 app.use("/api/notes", noteRoutes);
 app.use("/api/shared-notes", sharedNoteRoutes);
+app.use("/api/assignments", assignmentRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
