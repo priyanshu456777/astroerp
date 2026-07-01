@@ -85,13 +85,17 @@ export default function LandingPage() {
         </div>
 
         {/* Floating stat pills */}
-        <div className="absolute bottom-40 left-16 hidden lg:flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 text-white text-xs font-medium">
+        <div className="absolute top-36 left-8 hidden lg:flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 text-white text-xs font-medium">
   <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
   7 powerful modules
 </div>
-<div className="absolute bottom-24 right-16 hidden lg:flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 text-white text-xs font-medium">
+<div className="absolute top-52 right-8 hidden lg:flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 text-white text-xs font-medium">
   <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
   Role-based access control
+</div>
+<div className="absolute top-72 left-8 hidden lg:flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 text-white text-xs font-medium">
+  <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+  Real-time attendance tracking
 </div>
         <div className="absolute bottom-32 left-16 lg:left-32 hidden lg:flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 text-white text-xs font-medium animate-pulse" style={{animationDelay: "1s"}}>
           <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
