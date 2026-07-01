@@ -241,15 +241,61 @@ export default function SignupPage() {
                   </div>
                 </div>
 
+                {/* Smooth Date of Birth picker */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Date of birth</label>
-                  <input
-                    type="date"
-                    required
-                    value={dob}
-                    onChange={(e) => setDob(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-                  />
+                  <div className="grid grid-cols-3 gap-3">
+                    <select
+                      required
+                      value={dob ? dob.split("-")[2] : ""}
+                      onChange={(e) => {
+                        const day = e.target.value.padStart(2, "0");
+                        const [y, m] = dob ? dob.split("-") : ["", ""];
+                        setDob(`${y || "2006"}-${m || "01"}-${day}`);
+                      }}
+                      className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white cursor-pointer"
+                    >
+                      <option value="">Day</option>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                        <option key={d} value={String(d).padStart(2, "0")}>{d}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      required
+                      value={dob ? dob.split("-")[1] : ""}
+                      onChange={(e) => {
+                        const month = e.target.value;
+                        const [y, , d] = dob ? dob.split("-") : ["", "", ""];
+                        setDob(`${y || "2006"}-${month}-${d || "01"}`);
+                      }}
+                      className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white cursor-pointer"
+                    >
+                      <option value="">Month</option>
+                      {[
+                        "January", "February", "March", "April", "May", "June",
+                        "July", "August", "September", "October", "November", "December",
+                      ].map((m, i) => (
+                        <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      required
+                      value={dob ? dob.split("-")[0] : ""}
+                      onChange={(e) => {
+                        const year = e.target.value;
+                        const [, m, d] = dob ? dob.split("-") : ["", "", ""];
+                        setDob(`${year}-${m || "01"}-${d || "01"}`);
+                      }}
+                      className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white cursor-pointer"
+                    >
+                      <option value="">Year</option>
+                      {Array.from({ length: 30 }, (_, i) => new Date().getFullYear() - 10 - i).map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
