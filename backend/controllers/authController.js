@@ -3,6 +3,8 @@ const AdminRequest = require("../models/AdminRequest");
 const jwt = require("jsonwebtoken");
 const { generateAccessToken, generateRefreshToken } = require("../config/generateTokens");
 const { registerSchema, loginSchema } = require("../validators/authValidators");
+const Otp = require("../models/Otp");
+const { sendOtpEmail } = require("../config/mailer");
 
 const registerUser = async (req, res) => {
   try {
@@ -56,27 +58,27 @@ const registerUser = async (req, res) => {
   }
 };
 
-const loginUser = async (req, res) => {
+const verifyLoginOtp = async (req, res) => {
   try {
-    const parsed = loginSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({
-        message: "Validation failed",
-        errors: parsed.error.flatten().fieldErrors,
-      });
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP are required" });
     }
 
-    const { email, password } = parsed.data;
+    const record = await Otp.findOne({ email: email.toLowerCase(), purpose: "login" });
+    if (!record) {
+      return res.status(400).json({ message: "OTP expired or not found. Please login again." });
+    }
+    if (record.otp !== otp) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
-      return res.status(401).json({ message: "Invalid email or password" });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ message: "Invalid email or password" });
-    }
+    await Otp.deleteMany({ email: email.toLowerCase(), purpose: "login" });
 
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = generateRefreshToken(user._id);
@@ -94,8 +96,8 @@ const loginUser = async (req, res) => {
       accessToken,
     });
   } catch (error) {
-    console.error("Login error:", error.message);
-    return res.status(500).json({ message: "Server error during login" });
+    console.error("Verify login OTP error:", error.message);
+    return res.status(500).json({ message: "Server error while verifying OTP" });
   }
 };
 
@@ -183,6 +185,7 @@ const changePassword = async (req, res) => {
 module.exports = {
   registerUser,
   loginUser,
+  verifyLoginOtp,
   refreshAccessToken,
   logoutUser,
   getMe,

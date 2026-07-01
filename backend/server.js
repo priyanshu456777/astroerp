@@ -6,6 +6,7 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const connectDB = require("./config/db");
+const otpRoutes = require("./routes/otpRoutes");
 
 const authRoutes = require("./routes/authRoutes");
 const testRoutes = require("./routes/testRoutes");
@@ -43,6 +44,7 @@ app.use("/api/notices", noticeRoutes);
 app.use("/api/notes", noteRoutes);
 app.use("/api/shared-notes", sharedNoteRoutes);
 app.use("/api/assignments", assignmentRoutes);
+app.use("/api/otp", otpRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
