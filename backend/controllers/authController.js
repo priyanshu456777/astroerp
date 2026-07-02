@@ -58,6 +58,51 @@ const registerUser = async (req, res) => {
   }
 };
 
+const loginUser = async (req, res) => {
+  try {
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const { email, password } = parsed.data;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await Otp.deleteMany({ email: email.toLowerCase(), purpose: "login" });
+    await Otp.create({
+      email: email.toLowerCase(),
+      otp,
+      purpose: "login",
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    });
+
+    await sendOtpEmail(email, otp, "login");
+
+    return res.status(200).json({
+      message: "OTP sent to your email",
+      otpRequired: true,
+      email: user.email,
+    });
+  } catch (error) {
+    console.error("Login error:", error.message);
+    return res.status(500).json({ message: "Server error during login" });
+  }
+};
+
 const verifyLoginOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
