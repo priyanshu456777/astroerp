@@ -7,10 +7,14 @@ const sharedNoteSchema = new mongoose.Schema(
       required: [true, "Title is required"],
       trim: true,
     },
+    stream: {
+      type: String,
+      required: [true, "Stream is required"],
+    },
     subject: {
       type: String,
       required: [true, "Subject is required"],
-      enum: ["Mathematics", "Physics", "Chemistry", "Computer Science", "English", "Other"],
+      trim: true,
     },
     content: {
       type: String,
@@ -34,6 +38,6 @@ const sharedNoteSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-sharedNoteSchema.index({ subject: 1, createdAt: -1 });
+sharedNoteSchema.index({ stream: 1, subject: 1, createdAt: -1 });
 
 module.exports = mongoose.model("SharedNote", sharedNoteSchema);
