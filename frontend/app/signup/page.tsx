@@ -11,31 +11,64 @@ const STREAMS = [
 ];
 const SECTIONS = ["A", "B", "C", "D"];
 
+function getPasswordChecks(password: string) {
+  return {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+  };
+}
+
 export default function SignupPage() {
   const router = useRouter();
+  const [step, setStep] = useState<"form" | "otp">("form");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"student" | "admin">("student");
 
-  // Student fields
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
   const [dob, setDob] = useState("");
   const [stream, setStream] = useState("");
   const [section, setSection] = useState("");
 
-  // Admin fields
   const [teachingStream, setTeachingStream] = useState("");
   const [teachingSection, setTeachingSection] = useState("");
 
+  const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const passwordChecks = getPasswordChecks(password);
+  const passwordValid = Object.values(passwordChecks).every(Boolean);
+
+  const buildPayload = () => {
+    const payload: any = { name, email, password, role };
+    if (role === "student") {
+      payload.age = age;
+      payload.gender = gender;
+      payload.dob = dob;
+      payload.stream = stream;
+      payload.section = section;
+    } else {
+      payload.teachingStream = teachingStream;
+      payload.teachingSection = teachingSection;
+    }
+    return payload;
+  };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
+    if (!passwordValid) {
+      setError("Please make your password stronger before continuing.");
+      return;
+    }
     if (role === "student" && (!age || !gender || !dob || !stream || !section)) {
       setError("Please fill in all student details");
       return;
@@ -47,29 +80,52 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      const payload: any = { name, email, password, role };
-
-      if (role === "student") {
-        payload.age = age;
-        payload.gender = gender;
-        payload.dob = dob;
-        payload.stream = stream;
-        payload.section = section;
-      } else {
-        payload.teachingStream = teachingStream;
-        payload.teachingSection = teachingSection;
-      }
-
-      const data = await apiFetch("/auth/register", {
+      await apiFetch("/otp/send-signup-otp", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(buildPayload()),
+      });
+      setStep("otp");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setResending(true);
+    setError("");
+    try {
+      await apiFetch("/otp/send-signup-otp", {
+        method: "POST",
+        body: JSON.stringify(buildPayload()),
+      });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await apiFetch("/otp/verify-signup-otp", {
+        method: "POST",
+        body: JSON.stringify({ email, otp }),
       });
 
       if (role === "admin") {
         router.push("/login?pending=true");
       } else {
-        saveAuth(data.accessToken, data.user);
-        router.push("/dashboard");
+        const data = await apiFetch("/auth/login", {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+        });
+        // student login now also requires OTP, so redirect to login instead
+        router.push("/login?verified=true");
       }
     } catch (err: any) {
       setError(err.message);
@@ -132,256 +188,329 @@ export default function SignupPage() {
             <Link href="/" className="text-[#0B2530] font-bold text-xl">AstroERP</Link>
           </div>
 
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-[#0B2530]">Create your account</h2>
-            <p className="text-gray-500 text-sm mt-1">Get started with AstroERP for free</p>
-          </div>
-
-          {error && (
-            <div className="mb-5 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Priyanshu Sharma"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-                autoComplete="name"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-                autoComplete="email"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-                autoComplete="new-password"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">I am a</label>
-              <div className="grid grid-cols-2 gap-3">
-                {(["student", "admin"] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRole(r)}
-                    className={`py-3 rounded-xl text-sm font-medium border-2 transition-all capitalize ${
-                      role === r
-                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                        : "border-gray-200 text-gray-500 hover:border-gray-300"
-                    }`}
-                  >
-                    {r === "student" ? "🎓 Student" : "👨‍💼 Admin"}
-                  </button>
-                ))}
+          {step === "form" ? (
+            <>
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-[#0B2530]">Create your account</h2>
+                <p className="text-gray-500 text-sm mt-1">Get started with AstroERP for free</p>
               </div>
-              {role === "admin" && (
-                <p className="text-xs text-amber-600 mt-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Admin accounts require Super Admin approval before access is granted.
-                </p>
+
+              {error && (
+                <div className="mb-5 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">
+                  {error}
+                </div>
               )}
-            </div>
 
-            {/* Student-only fields */}
-            {role === "student" && (
-              <div className="space-y-4 pt-2 border-t border-gray-100">
-                <div className="grid grid-cols-2 gap-3 pt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Age</label>
-                    <input
-                      type="number"
-                      required
-                      min={10}
-                      max={100}
-                      value={age}
-                      onChange={(e) => setAge(e.target.value)}
-                      placeholder="19"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Gender</label>
-                    <select
-                      required
-                      value={gender}
-                      onChange={(e) => setGender(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
-                    >
-                      <option value="">Select</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Smooth Date of Birth picker */}
+              <form onSubmit={handleSendOtp} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Date of birth</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    <select
-                      required
-                      value={dob ? dob.split("-")[2] : ""}
-                      onChange={(e) => {
-                        const day = e.target.value.padStart(2, "0");
-                        const [y, m] = dob ? dob.split("-") : ["", ""];
-                        setDob(`${y || "2006"}-${m || "01"}-${day}`);
-                      }}
-                      className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white cursor-pointer"
-                    >
-                      <option value="">Day</option>
-                      {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                        <option key={d} value={String(d).padStart(2, "0")}>{d}</option>
-                      ))}
-                    </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Priyanshu Sharma"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                    autoComplete="name"
+                  />
+                </div>
 
-                    <select
-                      required
-                      value={dob ? dob.split("-")[1] : ""}
-                      onChange={(e) => {
-                        const month = e.target.value;
-                        const [y, , d] = dob ? dob.split("-") : ["", "", ""];
-                        setDob(`${y || "2006"}-${month}-${d || "01"}`);
-                      }}
-                      className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white cursor-pointer"
-                    >
-                      <option value="">Month</option>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                    autoComplete="email"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                    autoComplete="new-password"
+                  />
+                  {password.length > 0 && (
+                    <div className="mt-2 space-y-1">
                       {[
-                        "January", "February", "March", "April", "May", "June",
-                        "July", "August", "September", "October", "November", "December",
-                      ].map((m, i) => (
-                        <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>
+                        { key: "length", label: "At least 8 characters" },
+                        { key: "upper", label: "One uppercase letter" },
+                        { key: "lower", label: "One lowercase letter" },
+                        { key: "number", label: "One number" },
+                        { key: "special", label: "One special character" },
+                      ].map((rule) => (
+                        <div key={rule.key} className="flex items-center gap-1.5 text-xs">
+                          <span className={passwordChecks[rule.key as keyof typeof passwordChecks] ? "text-emerald-500" : "text-gray-300"}>
+                            {passwordChecks[rule.key as keyof typeof passwordChecks] ? "✓" : "○"}
+                          </span>
+                          <span className={passwordChecks[rule.key as keyof typeof passwordChecks] ? "text-emerald-600" : "text-gray-400"}>
+                            {rule.label}
+                          </span>
+                        </div>
                       ))}
-                    </select>
-
-                    <input
-  type="number"
-  required
-  placeholder="Year"
-  min={1970}
-  max={new Date().getFullYear() - 10}
-  value={dob ? dob.split("-")[0] : ""}
-  onChange={(e) => {
-    const year = e.target.value;
-    const [, m, d] = dob ? dob.split("-") : ["", "", ""];
-    setDob(`${year}-${m || "01"}-${d || "01"}`);
-  }}
-  className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-/>
-                  </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Stream</label>
-                    <select
-                      required
-                      value={stream}
-                      onChange={(e) => setStream(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
-                    >
-                      <option value="">Select stream</option>
-                      {STREAMS.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">I am a</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(["student", "admin"] as const).map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setRole(r)}
+                        className={`py-3 rounded-xl text-sm font-medium border-2 transition-all capitalize ${
+                          role === r
+                            ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                            : "border-gray-200 text-gray-500 hover:border-gray-300"
+                        }`}
+                      >
+                        {r === "student" ? "🎓 Student" : "👨‍💼 Admin"}
+                      </button>
+                    ))}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Section</label>
-                    <select
-                      required
-                      value={section}
-                      onChange={(e) => setSection(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
-                    >
-                      <option value="">Select section</option>
-                      {SECTIONS.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {role === "admin" && (
+                    <p className="text-xs text-amber-600 mt-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      Admin accounts require Super Admin approval before access is granted.
+                    </p>
+                  )}
                 </div>
+
+                {role === "student" && (
+                  <div className="space-y-4 pt-2 border-t border-gray-100">
+                    <div className="grid grid-cols-2 gap-3 pt-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Age</label>
+                        <input
+                          type="number"
+                          required
+                          min={10}
+                          max={100}
+                          value={age}
+                          onChange={(e) => setAge(e.target.value)}
+                          placeholder="19"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Gender</label>
+                        <select
+                          required
+                          value={gender}
+                          onChange={(e) => setGender(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                        >
+                          <option value="">Select</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Date of birth</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        <select
+                          required
+                          value={dob ? dob.split("-")[2] : ""}
+                          onChange={(e) => {
+                            const day = e.target.value.padStart(2, "0");
+                            const [y, m] = dob ? dob.split("-") : ["", ""];
+                            setDob(`${y || "2006"}-${m || "01"}-${day}`);
+                          }}
+                          className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white cursor-pointer"
+                        >
+                          <option value="">Day</option>
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                            <option key={d} value={String(d).padStart(2, "0")}>{d}</option>
+                          ))}
+                        </select>
+
+                        <select
+                          required
+                          value={dob ? dob.split("-")[1] : ""}
+                          onChange={(e) => {
+                            const month = e.target.value;
+                            const [y, , d] = dob ? dob.split("-") : ["", "", ""];
+                            setDob(`${y || "2006"}-${month}-${d || "01"}`);
+                          }}
+                          className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white cursor-pointer"
+                        >
+                          <option value="">Month</option>
+                          {[
+                            "January", "February", "March", "April", "May", "June",
+                            "July", "August", "September", "October", "November", "December",
+                          ].map((m, i) => (
+                            <option key={m} value={String(i + 1).padStart(2, "0")}>{m}</option>
+                          ))}
+                        </select>
+
+                        <input
+                          type="number"
+                          required
+                          placeholder="Year"
+                          min={1970}
+                          max={new Date().getFullYear() - 10}
+                          value={dob ? dob.split("-")[0] : ""}
+                          onChange={(e) => {
+                            const year = e.target.value;
+                            const [, m, d] = dob ? dob.split("-") : ["", "", ""];
+                            setDob(`${year}-${m || "01"}-${d || "01"}`);
+                          }}
+                          className="w-full px-3 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Stream</label>
+                        <select
+                          required
+                          value={stream}
+                          onChange={(e) => setStream(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                        >
+                          <option value="">Select stream</option>
+                          {STREAMS.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Section</label>
+                        <select
+                          required
+                          value={section}
+                          onChange={(e) => setSection(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                        >
+                          <option value="">Select section</option>
+                          {SECTIONS.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {role === "admin" && (
+                  <div className="space-y-4 pt-2 border-t border-gray-100">
+                    <p className="text-sm font-medium text-gray-700 pt-4">Class you teach</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Stream</label>
+                        <select
+                          required
+                          value={teachingStream}
+                          onChange={(e) => setTeachingStream(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                        >
+                          <option value="">Select stream</option>
+                          {STREAMS.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Section</label>
+                        <select
+                          required
+                          value={teachingSection}
+                          onChange={(e) => setTeachingSection(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
+                        >
+                          <option value="">Select section</option>
+                          {SECTIONS.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl transition-all hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                >
+                  {loading ? "Sending code..." : "Continue"}
+                </button>
+              </form>
+
+              <p className="text-center text-sm text-gray-500 mt-6">
+                Already have an account?{" "}
+                <Link href="/login" className="text-emerald-600 font-medium hover:underline">
+                  Log in
+                </Link>
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-2xl mb-4">✉️</div>
+                <h2 className="text-2xl font-bold text-[#0B2530]">Verify your email</h2>
+                <p className="text-gray-500 text-sm mt-1">
+                  We sent a 6-digit code to <span className="font-medium text-gray-700">{email}</span>
+                </p>
               </div>
-            )}
 
-            {/* Admin-only fields */}
-            {role === "admin" && (
-              <div className="space-y-4 pt-2 border-t border-gray-100">
-                <p className="text-sm font-medium text-gray-700 pt-4">Class you teach</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Stream</label>
-                    <select
-                      required
-                      value={teachingStream}
-                      onChange={(e) => setTeachingStream(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
-                    >
-                      <option value="">Select stream</option>
-                      {STREAMS.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Section</label>
-                    <select
-                      required
-                      value={teachingSection}
-                      onChange={(e) => setTeachingSection(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all bg-white"
-                    >
-                      <option value="">Select section</option>
-                      {SECTIONS.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
+              {error && (
+                <div className="mb-5 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl">
+                  {error}
                 </div>
+              )}
+
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  className="w-full px-4 py-4 border border-gray-200 rounded-xl text-center text-2xl tracking-[0.5em] font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                />
+
+                <button
+                  type="submit"
+                  disabled={loading || otp.length !== 6}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl transition-all hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Verifying..." : "Verify & Create account"}
+                </button>
+              </form>
+
+              <div className="flex items-center justify-between mt-4 text-sm">
+                <button
+                  onClick={() => setStep("form")}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ← Edit details
+                </button>
+                <button
+                  onClick={handleResendOtp}
+                  disabled={resending}
+                  className="text-emerald-600 font-medium hover:underline disabled:opacity-50"
+                >
+                  {resending ? "Sending..." : "Resend code"}
+                </button>
               </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 rounded-xl transition-all hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-            >
-              {loading ? "Creating account..." : "Create account"}
-            </button>
-          </form>
-
-          <p className="text-center text-sm text-gray-500 mt-6">
-            Already have an account?{" "}
-            <Link href="/login" className="text-emerald-600 font-medium hover:underline">
-              Log in
-            </Link>
-          </p>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -8,20 +8,55 @@ import { saveAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [step, setStep] = useState<"password" | "otp">("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const data = await apiFetch("/auth/login", {
+      await apiFetch("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
+      });
+      setStep("otp");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setResending(true);
+    setError("");
+    try {
+      await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const data = await apiFetch("/auth/verify-login-otp", {
+        method: "POST",
+        body: JSON.stringify({ email, otp }),
       });
       saveAuth(data.accessToken, data.user);
       router.push("/dashboard");
@@ -44,7 +79,6 @@ export default function LoginPage() {
         />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#123847]/40 rounded-full blur-3xl" />
 
-        {/* Grid pattern overlay */}
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -82,7 +116,6 @@ export default function LoginPage() {
             Access your timetable, tasks, attendance, notices, and notes — all in one place, built for how your campus actually works.
           </p>
 
-          {/* Feature highlights */}
           <div className="space-y-3 pt-2">
             {[
               { icon: "📅", label: "Smart Timetable & Task Tracking" },
@@ -118,96 +151,153 @@ export default function LoginPage() {
             </Link>
           </div>
 
-          <div className="mb-8">
-            <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 text-emerald-700 text-xs font-medium mb-4">
-              👋 Good to see you again
-            </div>
-            <h2 className="text-3xl font-bold text-[#0B2530]">Log in to your account</h2>
-            <p className="text-gray-500 text-sm mt-1.5">Enter your credentials to continue</p>
-          </div>
-
-          {error && (
-            <div className="mb-5 p-3.5 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl flex items-start gap-2">
-              <span className="text-red-400 mt-0.5">⚠</span>
-              <span>{error}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">✉</span>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  className="w-full pl-10 pr-4 py-3.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-                />
+          {step === "password" ? (
+            <>
+              <div className="mb-8">
+                <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 text-emerald-700 text-xs font-medium mb-4">
+                  👋 Good to see you again
+                </div>
+                <h2 className="text-3xl font-bold text-[#0B2530]">Log in to your account</h2>
+                <p className="text-gray-500 text-sm mt-1.5">Enter your credentials to continue</p>
               </div>
-            </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-sm font-medium text-gray-700">Password</label>
-              </div>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔒</span>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  className="w-full pl-10 pr-11 py-3.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-                />
+              {error && (
+                <div className="mb-5 p-3.5 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl flex items-start gap-2">
+                  <span className="text-red-400 mt-0.5">⚠</span>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <form onSubmit={handlePasswordSubmit} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">✉</span>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      className="w-full pl-10 pr-4 py-3.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-sm font-medium text-gray-700">Password</label>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔒</span>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      className="w-full pl-10 pr-11 py-3.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-medium"
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                </div>
+
                 <button
-                  type="button"
-                  onClick={() => setShowPassword((s) => !s)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-medium"
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3.5 rounded-xl transition-all hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
                 >
-                  {showPassword ? "Hide" : "Show"}
+                  {loading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>
+                      Sending code...
+                    </>
+                  ) : (
+                    <>
+                      Continue
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="flex items-center gap-3 my-6">
+                <div className="flex-1 h-px bg-gray-100"></div>
+                <span className="text-gray-400 text-xs">New to AstroERP?</span>
+                <div className="flex-1 h-px bg-gray-100"></div>
+              </div>
+
+              <Link
+                href="/signup"
+                className="w-full block text-center border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 text-[#0B2530] font-semibold py-3.5 rounded-xl transition-all"
+              >
+                Create an account
+              </Link>
+            </>
+          ) : (
+            <>
+              <div className="mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-2xl mb-4">✉️</div>
+                <h2 className="text-3xl font-bold text-[#0B2530]">Verify your email</h2>
+                <p className="text-gray-500 text-sm mt-1.5">
+                  We sent a 6-digit code to <span className="font-medium text-gray-700">{email}</span>
+                </p>
+              </div>
+
+              {error && (
+                <div className="mb-5 p-3.5 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl flex items-start gap-2">
+                  <span className="text-red-400 mt-0.5">⚠</span>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleVerifyOtp} className="space-y-5">
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                  placeholder="000000"
+                  className="w-full px-4 py-4 border border-gray-200 rounded-xl text-center text-2xl tracking-[0.5em] font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                />
+
+                <button
+                  type="submit"
+                  disabled={loading || otp.length !== 6}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3.5 rounded-xl transition-all hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+                >
+                  {loading ? "Verifying..." : "Verify & Log in"}
+                </button>
+              </form>
+
+              <div className="flex items-center justify-between mt-4 text-sm">
+                <button
+                  onClick={() => setStep("password")}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={handleResendOtp}
+                  disabled={resending}
+                  className="text-emerald-600 font-medium hover:underline disabled:opacity-50"
+                >
+                  {resending ? "Sending..." : "Resend code"}
                 </button>
               </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3.5 rounded-xl transition-all hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
-            >
-              {loading ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></span>
-                  Logging in...
-                </>
-              ) : (
-                <>
-                  Log in
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M5 12h14M12 5l7 7-7 7" />
-                  </svg>
-                </>
-              )}
-            </button>
-          </form>
-
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px bg-gray-100"></div>
-            <span className="text-gray-400 text-xs">New to AstroERP?</span>
-            <div className="flex-1 h-px bg-gray-100"></div>
-          </div>
-
-          <Link
-            href="/signup"
-            className="w-full block text-center border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 text-[#0B2530] font-semibold py-3.5 rounded-xl transition-all"
-          >
-            Create an account
-          </Link>
+            </>
+          )}
         </div>
       </div>
     </div>
