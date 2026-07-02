@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getStoredUser } from "@/lib/auth";
+import { STREAM_SUBJECTS } from "@/lib/streamSubjects";
 
 interface SharedNote {
   _id: string;
   title: string;
   subject: string;
+  stream: string;
   content?: string;
   attachmentUrl?: string;
   attachmentName?: string;
@@ -15,18 +17,18 @@ interface SharedNote {
   createdAt: string;
 }
 
-const subjects = ["Mathematics", "Physics", "Chemistry", "Computer Science", "English", "Other"];
-
 export default function SharedNotesPage() {
   const user = getStoredUser();
   const isAdmin = user?.role === "admin";
+  const userStream = isAdmin ? user?.teachingStream : user?.stream;
+  const subjects = STREAM_SUBJECTS[userStream || ""] || [];
 
   const [notes, setNotes] = useState<SharedNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
-  const [subject, setSubject] = useState(subjects[0]);
+  const [subject, setSubject] = useState(subjects[0] || "");
   const [content, setContent] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -94,7 +96,12 @@ export default function SharedNotesPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Shared Notes</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Shared Notes</h1>
+          {userStream && (
+            <p className="text-sm text-gray-500 mt-0.5">{userStream} class resources</p>
+          )}
+        </div>
         {isAdmin && (
           <button
             onClick={() => setShowForm(!showForm)}
