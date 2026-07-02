@@ -1,4 +1,3 @@
-const bcrypt = require("bcryptjs");
 const Otp = require("../models/Otp");
 const User = require("../models/User");
 const AdminRequest = require("../models/AdminRequest");
@@ -43,13 +42,12 @@ const verifySignupOtp = async (req, res) => {
     if (record.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
 
     const { password, role, ...rest } = record.payload;
-    const hashedPassword = await bcrypt.hash(password, 10);
     const wantsAdmin = role === "admin";
 
     const user = await User.create({
       ...rest,
       email: email.toLowerCase(),
-      password: hashedPassword,
+      password: password,
       role: "student",
       adminStatus: wantsAdmin ? "pending" : "none",
     });
@@ -67,8 +65,7 @@ const verifySignupOtp = async (req, res) => {
   }
 };
 
-// Called after correct password check on login (used by authController's loginUser instead now,
-// kept here for the /api/otp/send-login-otp route if needed elsewhere)
+// Kept for compatibility if any other route calls this directly
 const sendLoginOtp = async (req, res) => {
   try {
     const { email } = req.body;
