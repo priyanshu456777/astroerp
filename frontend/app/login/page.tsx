@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -60,6 +61,28 @@ export default function LoginPage() {
       });
       saveAuth(data.accessToken, data.user);
       router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleCredential = async (credential: string) => {
+    setError("");
+    setLoading(true);
+    try {
+      const data = await apiFetch("/auth/google", {
+        method: "POST",
+        body: JSON.stringify({ idToken: credential }),
+      });
+
+      if (data.newUser) {
+        setError("No account found with this Google account. Please sign up first.");
+      } else {
+        saveAuth(data.accessToken, data.user);
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -167,6 +190,16 @@ export default function LoginPage() {
                   <span>{error}</span>
                 </div>
               )}
+
+              <div className="mb-5">
+                <GoogleSignInButton onCredential={handleGoogleCredential} />
+              </div>
+
+              <div className="flex items-center gap-3 mb-5">
+                <div className="flex-1 h-px bg-gray-100"></div>
+                <span className="text-gray-400 text-xs">or use email</span>
+                <div className="flex-1 h-px bg-gray-100"></div>
+              </div>
 
               <form onSubmit={handlePasswordSubmit} className="space-y-5">
                 <div>

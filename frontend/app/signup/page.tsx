@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { saveAuth } from "@/lib/auth";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 const STREAMS = [
   "AIDS", "CSE", "AI & Robotics", "AIML", "BCA", "BA", "BBA", "B.Com", "BSc", "Mechanical",
@@ -130,6 +131,50 @@ export default function SignupPage() {
     }
   };
 
+  const handleGoogleCredential = async (credential: string) => {
+    setError("");
+
+    if (role === "student" && (!age || !gender || !dob || !stream || !section)) {
+      setError("Please fill in all student details above before continuing with Google");
+      return;
+    }
+    if (role === "admin" && (!teachingStream || !teachingSection)) {
+      setError("Please select the stream and section you teach before continuing with Google");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload: any = { idToken: credential, role };
+      if (role === "student") {
+        payload.age = age;
+        payload.gender = gender;
+        payload.dob = dob;
+        payload.stream = stream;
+        payload.section = section;
+      } else {
+        payload.teachingStream = teachingStream;
+        payload.teachingSection = teachingSection;
+      }
+
+      const data = await apiFetch("/auth/google", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      if (role === "admin") {
+        router.push("/login?pending=true");
+      } else {
+        saveAuth(data.accessToken, data.user);
+        router.push("/dashboard");
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0B2530] flex">
       {/* Left panel */}
@@ -198,65 +243,6 @@ export default function SignupPage() {
               )}
 
               <form onSubmit={handleSendOtp} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Priyanshu Sharma"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-                    autoComplete="name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-                    autoComplete="email"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
-                    autoComplete="new-password"
-                  />
-                  {password.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {[
-                        { key: "length", label: "At least 8 characters" },
-                        { key: "upper", label: "One uppercase letter" },
-                        { key: "lower", label: "One lowercase letter" },
-                        { key: "number", label: "One number" },
-                        { key: "special", label: "One special character" },
-                      ].map((rule) => (
-                        <div key={rule.key} className="flex items-center gap-1.5 text-xs">
-                          <span className={passwordChecks[rule.key as keyof typeof passwordChecks] ? "text-emerald-500" : "text-gray-300"}>
-                            {passwordChecks[rule.key as keyof typeof passwordChecks] ? "✓" : "○"}
-                          </span>
-                          <span className={passwordChecks[rule.key as keyof typeof passwordChecks] ? "text-emerald-600" : "text-gray-400"}>
-                            {rule.label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">I am a</label>
                   <div className="grid grid-cols-2 gap-3">
@@ -437,6 +423,78 @@ export default function SignupPage() {
                     </div>
                   </div>
                 )}
+
+                <div className="pt-2">
+                  <p className="text-xs text-gray-500 mb-2 text-center">
+                    Continue with Google using the details you selected above
+                  </p>
+                  <GoogleSignInButton onCredential={handleGoogleCredential} />
+                </div>
+
+                <div className="flex items-center gap-3 py-2">
+                  <div className="flex-1 h-px bg-gray-100"></div>
+                  <span className="text-gray-400 text-xs">or use email</span>
+                  <div className="flex-1 h-px bg-gray-100"></div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Priyanshu Sharma"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                    autoComplete="name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                    autoComplete="email"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+                    autoComplete="new-password"
+                  />
+                  {password.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {[
+                        { key: "length", label: "At least 8 characters" },
+                        { key: "upper", label: "One uppercase letter" },
+                        { key: "lower", label: "One lowercase letter" },
+                        { key: "number", label: "One number" },
+                        { key: "special", label: "One special character" },
+                      ].map((rule) => (
+                        <div key={rule.key} className="flex items-center gap-1.5 text-xs">
+                          <span className={passwordChecks[rule.key as keyof typeof passwordChecks] ? "text-emerald-500" : "text-gray-300"}>
+                            {passwordChecks[rule.key as keyof typeof passwordChecks] ? "✓" : "○"}
+                          </span>
+                          <span className={passwordChecks[rule.key as keyof typeof passwordChecks] ? "text-emerald-600" : "text-gray-400"}>
+                            {rule.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <button
                   type="submit"
