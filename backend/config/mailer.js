@@ -1,6 +1,15 @@
-const { Resend } = require("resend");
+const nodemailer = require("nodemailer");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  requireTLS: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_APP_PASSWORD,
+  },
+});
 
 const sendOtpEmail = async (toEmail, otp, purpose) => {
   const subject = purpose === "signup" ? "Verify your AstroERP account" : "Your AstroERP login code";
@@ -12,9 +21,8 @@ const sendOtpEmail = async (toEmail, otp, purpose) => {
       <p style="color: #888; font-size: 13px;">This code expires in 10 minutes. If you didn't request this, ignore this email.</p>
     </div>
   `;
-
-  await resend.emails.send({
-    from: "AstroERP <onboarding@resend.dev>",
+  await transporter.sendMail({
+    from: `"AstroERP" <${process.env.EMAIL_USER}>`,
     to: toEmail,
     subject,
     html,
