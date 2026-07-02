@@ -1,10 +1,14 @@
 const User = require("../models/User");
 const AdminRequest = require("../models/AdminRequest");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const { OAuth2Client } = require("google-auth-library");
 const { generateAccessToken, generateRefreshToken } = require("../config/generateTokens");
 const { registerSchema, loginSchema } = require("../validators/authValidators");
 const Otp = require("../models/Otp");
 const { sendOtpEmail } = require("../config/mailer");
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const registerUser = async (req, res) => {
   try {
@@ -146,6 +150,97 @@ const verifyLoginOtp = async (req, res) => {
   }
 };
 
+// Handles BOTH Google login and Google signup depending on whether the email already exists
+const googleAuth = async (req, res) => {
+  try {
+    const { idToken, role, age, gender, dob, stream, section, teachingStream, teachingSection } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({ message: "Google ID token is required" });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const email = payload.email.toLowerCase();
+    const name = payload.name || email.split("@")[0];
+
+    let user = await User.findOne({ email });
+
+    // Existing account -> Google already verified the email, log them straight in
+    if (user) {
+      const accessToken = generateAccessToken(user._id, user.role);
+      const refreshToken = generateRefreshToken(user._id);
+
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      return res.status(200).json({ message: "Login successful", user, accessToken });
+    }
+
+    // No account yet -> need student/admin details to create one
+    const wantsAdmin = role === "admin";
+    const hasStudentDetails = age && gender && dob && stream && section;
+    const hasAdminDetails = teachingStream && teachingSection;
+
+    if (!role || (role === "student" && !hasStudentDetails) || (role === "admin" && !hasAdminDetails)) {
+      return res.status(200).json({
+        newUser: true,
+        email,
+        name,
+        message: "No account found for this Google email. Please fill in your details to sign up.",
+      });
+    }
+
+    const randomPassword = crypto.randomBytes(20).toString("hex");
+
+    const newUser = await User.create({
+      name,
+      email,
+      password: randomPassword,
+      role: "student",
+      adminStatus: wantsAdmin ? "pending" : "none",
+      ...(role === "student" ? { age, gender, dob, stream, section } : {}),
+      ...(wantsAdmin ? { teachingStream, teachingSection } : {}),
+    });
+
+    if (wantsAdmin) {
+      await AdminRequest.create({ userId: newUser._id });
+      return res.status(201).json({
+        message: "Account created successfully",
+        userId: newUser._id,
+        wantsAdmin: true,
+      });
+    }
+
+    const accessToken = generateAccessToken(newUser._id, newUser.role);
+    const refreshToken = generateRefreshToken(newUser._id);
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(201).json({
+      message: "Account created successfully",
+      user: newUser,
+      accessToken,
+      wantsAdmin: false,
+    });
+  } catch (error) {
+    console.error("Google auth error:", error.message);
+    return res.status(401).json({ message: "Google authentication failed" });
+  }
+};
+
 const refreshAccessToken = async (req, res) => {
   try {
     const token = req.cookies.refreshToken;
@@ -231,6 +326,7 @@ module.exports = {
   registerUser,
   loginUser,
   verifyLoginOtp,
+  googleAuth,
   refreshAccessToken,
   logoutUser,
   getMe,
