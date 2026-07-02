@@ -2,6 +2,7 @@ const Otp = require("../models/Otp");
 const User = require("../models/User");
 const AdminRequest = require("../models/AdminRequest");
 const { sendOtpEmail } = require("../config/mailer");
+const { generateAccessToken, generateRefreshToken } = require("../config/generateTokens");
 
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -58,7 +59,27 @@ const verifySignupOtp = async (req, res) => {
 
     await Otp.deleteMany({ email: email.toLowerCase(), purpose: "signup" });
 
-    return res.status(201).json({ message: "Account created successfully", userId: user._id, wantsAdmin });
+    // If student (not requesting admin), log them in immediately — no second OTP needed
+    if (!wantsAdmin) {
+      const accessToken = generateAccessToken(user._id, user.role);
+      const refreshToken = generateRefreshToken(user._id);
+
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      return res.status(201).json({
+        message: "Account created successfully",
+        user,
+        accessToken,
+        wantsAdmin: false,
+      });
+    }
+
+    return res.status(201).json({ message: "Account created successfully", userId: user._id, wantsAdmin: true });
   } catch (error) {
     console.error("Verify signup OTP error:", error.message);
     return res.status(500).json({ message: "Failed to verify OTP" });

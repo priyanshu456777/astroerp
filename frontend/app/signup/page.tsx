@@ -112,7 +112,7 @@ export default function SignupPage() {
     setError("");
     setLoading(true);
     try {
-      await apiFetch("/otp/verify-signup-otp", {
+      const data = await apiFetch("/otp/verify-signup-otp", {
         method: "POST",
         body: JSON.stringify({ email, otp }),
       });
@@ -120,12 +120,8 @@ export default function SignupPage() {
       if (role === "admin") {
         router.push("/login?pending=true");
       } else {
-        const data = await apiFetch("/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ email, password }),
-        });
-        // student login now also requires OTP, so redirect to login instead
-        router.push("/login?verified=true");
+        saveAuth(data.accessToken, data.user);
+        router.push("/dashboard");
       }
     } catch (err: any) {
       setError(err.message);
